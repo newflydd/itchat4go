@@ -7,6 +7,7 @@ import (
 	s "itchat4go/service"
 	"os/exec"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -15,6 +16,7 @@ var (
 	err        error
 	loginMap   m.LoginMap
 	contactMap map[string]m.User
+	groupMap   map[string][]m.User /* 关键字为key的，群组数组 */
 )
 
 func main() {
@@ -73,13 +75,28 @@ func main() {
 	if err != nil {
 		panicErr(err)
 	}
-	fmt.Printf("成功获取 %d个 联系人信息\n", len(contactMap))
+	fmt.Printf("成功获取 %d个 联系人信息,开始整理群组信息...\n", len(contactMap))
+
+	groupMap = s.MapGroupInfo(contactMap)
+	groupSize := 0
+	for _, v := range groupMap {
+		groupSize += len(v)
+	}
+	fmt.Printf("整理完毕，共有 %d个 群组是焦点群组，它们是：\n", groupSize)
+	for _, v := range groupMap {
+		for _, user := range v {
+			fmt.Println(user.NickName)
+		}
+	}
 
 	fmt.Println("开始监听消息响应...")
 	var retcode, selector int64
-	regAt := regexp.MustCompile(`^.*@.*丁丁.*$`)
+	regAt := regexp.MustCompile(`^@.*@.*丁丁.*$`) /* 群聊时其他人说话时会在前面加上@XXX */
 	regGroup := regexp.MustCompile(`^@@.+`)
 	regAd := regexp.MustCompile(`(朋友圈|点赞)+`)
+	secretCode := "cmd"
+	regFather := regexp.MustCompile(`^:[^:]{2,4}$`)
+	regChildren := regexp.MustCompile(`^::.{2,}$`)
 	for {
 		retcode, selector, err = s.SyncCheck(&loginMap)
 		if err != nil {
@@ -122,6 +139,33 @@ func main() {
 						wxSendMsg.ClientMsgId = wxSendMsg.LocalID
 
 						go s.SendMsg(&loginMap, wxSendMsg)
+					} else if (!regGroup.MatchString(wxRecvMsges.MsgList[i].FromUserName)) && strings.EqualFold(wxRecvMsges.MsgList[i].Content, secretCode) {
+						/* 有人私聊我，并且内容是密语，输出加群菜单 */
+						wxSendMsg := m.WxSendMsg{}
+						wxSendMsg.Type = 1
+						wxSendMsg.Content = fmt.Sprintf("我是丁丁编写的微信群聊助手，我为您提供了以下分组关键词：\n\n%s\n\n您可以输入半角的':' + 关键词获取更详细的群聊目录，比如您可以输入[:IT技能]，我会为您细化系统内所有与IT技能相关的领域，您可以进一步选择加入该领域的微信群聊。", e.GetFatherKeywordsStr())
+						wxSendMsg.FromUserName = wxRecvMsges.MsgList[i].ToUserName
+						wxSendMsg.ToUserName = wxRecvMsges.MsgList[i].FromUserName
+						wxSendMsg.LocalID = fmt.Sprintf("%d", time.Now().Unix())
+						wxSendMsg.ClientMsgId = wxSendMsg.LocalID
+
+						go s.SendMsg(&loginMap, wxSendMsg)
+					} else if (!regGroup.MatchString(wxRecvMsges.MsgList[i].FromUserName)) && regFather.MatchString(wxRecvMsges.MsgList[i].Content) {
+						/* 有人私聊我，并且内容是:+一级目录的形式，输出子目录 */
+						description, keywords := e.GetChildKeywordsInfo(wxRecvMsges.MsgList[i].Content[1:])
+
+						wxSendMsg := m.WxSendMsg{}
+						wxSendMsg.Type = 1
+						wxSendMsg.Content = fmt.Sprintf("%s\n\n%s\n\n您可以输入两个半角的:: + 关键词，我会为您寻找系统内的微信群组并邀请您加入，比如您可以输入「::Golang」，我会邀请您加入专业探讨Golang技术的微信群组。", description, keywords)
+						wxSendMsg.FromUserName = wxRecvMsges.MsgList[i].ToUserName
+						wxSendMsg.ToUserName = wxRecvMsges.MsgList[i].FromUserName
+						wxSendMsg.LocalID = fmt.Sprintf("%d", time.Now().Unix())
+						wxSendMsg.ClientMsgId = wxSendMsg.LocalID
+
+						go s.SendMsg(&loginMap, wxSendMsg)
+					} else if (!regGroup.MatchString(wxRecvMsges.MsgList[i].FromUserName)) && regChildren.MatchString(wxRecvMsges.MsgList[i].Content) {
+						/* 有人私聊我，并且内容是::+二级目录的形式，邀请对方加入群聊 */
+						go s.InviteMember(&loginMap, wxRecvMsges.MsgList[i].FromUserName, groupMap["Angular"][0].UserName)
 					}
 				}
 			}

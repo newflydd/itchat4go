@@ -154,7 +154,7 @@ func SendMsg(loginMap *m.LoginMap, wxSendMsg m.WxSendMsg) error {
 	urlMap[e.PassTicket] = loginMap.PassTicket
 
 	wxSendMsgMap := map[string]interface{}{}
-	wxSendMsgMap["BaseRequest"] = loginMap.BaseRequest
+	wxSendMsgMap[e.BaseRequest] = loginMap.BaseRequest
 	wxSendMsgMap["Msg"] = wxSendMsg
 	wxSendMsgMap["Scene"] = 0
 
@@ -168,6 +168,36 @@ func SendMsg(loginMap *m.LoginMap, wxSendMsg m.WxSendMsg) error {
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+/* 邀请联系人加入群 */
+func InviteMember(loginMap *m.LoginMap, memberUserName string, chatRoomUserName string) error {
+	urlMap := map[string]string{}
+	urlMap["fun"] = "invitemember"
+
+	wxUpdateChatRoomMap := map[string]interface{}{}
+	wxUpdateChatRoomMap[e.BaseRequest] = loginMap.BaseRequest
+	wxUpdateChatRoomMap["InviteMemberList"] = memberUserName
+	wxUpdateChatRoomMap["ChatRoomName"] = chatRoomUserName
+	jsonBytes, err := json.Marshal(wxUpdateChatRoomMap)
+	if err != nil {
+		return err
+	}
+
+	//TODO:发送群聊邀请暂不做反馈解析
+	u, _ := url.Parse("https://wx.qq.com")
+	timeout := time.Duration(30 * time.Second)
+
+	jar := new(m.Jar)
+	jar.SetCookies(u, loginMap.Cookies)
+
+	client := &http.Client{
+		Jar:     jar,
+		Timeout: timeout}
+
+	_, err = client.Post(e.WEB_WX_UPDATECHATROOM_URL+t.GetURLParams(urlMap), e.JSON_HEADER, strings.NewReader(string(jsonBytes)))
 
 	return nil
 }

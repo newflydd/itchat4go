@@ -9,6 +9,8 @@ import (
 	t "itchat4go/tools"
 	"net/http"
 	"net/url"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -57,4 +59,22 @@ func GetAllContact(loginMap *m.LoginMap) (map[string]m.User, error) {
 	}
 
 	return contactMap, nil
+}
+
+func MapGroupInfo(contactMap map[string]m.User) map[string][]m.User {
+	groupMap := map[string][]m.User{}
+
+	for _, user := range contactMap {
+		if strings.HasPrefix(user.UserName, "@@") {
+			/* 如果该联系人是一个群组，依次判断是否需要加入焦点群列表 */
+			for _, key := range e.GetFocusGroupKeywords() {
+				reg := regexp.MustCompile(key)
+				if reg.MatchString(user.UserName) || reg.MatchString(user.NickName) {
+					groupMap[key] = append(groupMap[key], user)
+				}
+			}
+		}
+	}
+
+	return groupMap
 }

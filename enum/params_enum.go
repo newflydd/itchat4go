@@ -22,10 +22,11 @@ const (
 	SelfNickName = "NickName"
 	SyncKeyStr   = "synckeystr"
 
-	Sid      = "sid"
-	Uin      = "uin"
-	DeviceId = "deviceid"
-	SyncKey  = "synckey"
+	Sid         = "sid"
+	Uin         = "uin"
+	DeviceId    = "deviceid"
+	SyncKey     = "synckey"
+	BaseRequest = "BaseRequest"
 )
 
 var (

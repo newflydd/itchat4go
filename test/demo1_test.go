@@ -19,11 +19,6 @@ var contactMap map[string]m.User
 func init() {
 }
 
-func TestReg(test *testing.T) {
-	reg := regexp.MustCompile(`^.*@.*丁丁.*$`)
-	fmt.Println(reg.MatchString("我们平时讨论丁丁"))
-}
-
 /* 从微信服务器获取UUID */
 func TTestGetUUID(test *testing.T) {
 	uuid, err = s.GetUUIDFromWX()
@@ -31,6 +26,10 @@ func TTestGetUUID(test *testing.T) {
 	if err != nil {
 		panicErr(err)
 	}
+}
+
+func TestStr(test *testing.T) {
+	fmt.Println(regexp.MustCompile(`^:[^:]{2,4}$`).MatchString("::尤文"))
 }
 
 /* 根据UUID获取二维码 */
