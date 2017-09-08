@@ -143,7 +143,7 @@ func main() {
 						/* 有人私聊我，并且内容是密语，输出加群菜单 */
 						wxSendMsg := m.WxSendMsg{}
 						wxSendMsg.Type = 1
-						wxSendMsg.Content = fmt.Sprintf("我是丁丁编写的微信群聊助手，我为您提供了以下分组关键词：\n\n%s\n\n您可以输入半角的':' + 关键词获取更详细的群聊目录，比如您可以输入[:IT技能]，我会为您细化系统内所有与IT技能相关的领域，您可以进一步选择加入该领域的微信群聊。", e.GetFatherKeywordsStr())
+						wxSendMsg.Content = fmt.Sprintf("我是丁丁编写的微信群聊助手，我为您提供了以下分组关键词：\n\n%s\n\n您可以输入半角的':' + 关键词获取更详细的群聊目录，比如您可以输入[:编程]，我会为您细化系统内所有与IT技能相关的领域，您可以进一步选择加入该领域的微信群聊。", e.GetFatherKeywordsStr())
 						wxSendMsg.FromUserName = wxRecvMsges.MsgList[i].ToUserName
 						wxSendMsg.ToUserName = wxRecvMsges.MsgList[i].FromUserName
 						wxSendMsg.LocalID = fmt.Sprintf("%d", time.Now().Unix())
@@ -152,11 +152,17 @@ func main() {
 						go s.SendMsg(&loginMap, wxSendMsg)
 					} else if (!regGroup.MatchString(wxRecvMsges.MsgList[i].FromUserName)) && regFather.MatchString(wxRecvMsges.MsgList[i].Content) {
 						/* 有人私聊我，并且内容是:+一级目录的形式，输出子目录 */
-						description, keywords := e.GetChildKeywordsInfo(wxRecvMsges.MsgList[i].Content[1:])
+						description, exampleStr, keywords := e.GetChildKeywordsInfo(wxRecvMsges.MsgList[i].Content[1:])
+						var content string
+						if keywords == "" {
+							content = fmt.Sprintf("没有查询到您输入关键字对应的分组信息，目前提供了以下分组关键词：\n\n%s\n\n您可以输入半角的':' + 关键词获取更详细的群聊目录，比如您可以输入[:编程]，我会为您细化系统内所有与IT技能相关的领域，您可以进一步选择加入该领域的微信群聊。", e.GetFatherKeywordsStr())
+						} else {
+							content = fmt.Sprintf(`%s\n\n%s\n\n您可以输入两个半角的:: + 关键词，我会为您寻找系统内的微信群组并邀请您加入，比如您可以输入%s`, description, keywords, exampleStr)
+						}
 
 						wxSendMsg := m.WxSendMsg{}
 						wxSendMsg.Type = 1
-						wxSendMsg.Content = fmt.Sprintf("%s\n\n%s\n\n您可以输入两个半角的:: + 关键词，我会为您寻找系统内的微信群组并邀请您加入，比如您可以输入「::Golang」，我会邀请您加入专业探讨Golang技术的微信群组。", description, keywords)
+						wxSendMsg.Content = content
 						wxSendMsg.FromUserName = wxRecvMsges.MsgList[i].ToUserName
 						wxSendMsg.ToUserName = wxRecvMsges.MsgList[i].FromUserName
 						wxSendMsg.LocalID = fmt.Sprintf("%d", time.Now().Unix())
@@ -165,7 +171,19 @@ func main() {
 						go s.SendMsg(&loginMap, wxSendMsg)
 					} else if (!regGroup.MatchString(wxRecvMsges.MsgList[i].FromUserName)) && regChildren.MatchString(wxRecvMsges.MsgList[i].Content) {
 						/* 有人私聊我，并且内容是::+二级目录的形式，邀请对方加入群聊 */
-						go s.InviteMember(&loginMap, wxRecvMsges.MsgList[i].FromUserName, groupMap["Angular"][0].UserName)
+						if len(groupMap[strings.ToLower(wxRecvMsges.MsgList[i].Content[1:])]) == 0 {
+							wxSendMsg := m.WxSendMsg{}
+							wxSendMsg.Type = 1
+							wxSendMsg.Content = fmt.Sprintf("Sorry，没有找到您查询的群组。我为您提供了以下分组关键词：\n\n%s\n\n您可以输入半角的':' + 关键词获取更详细的群聊目录，比如您可以输入[:编程]，我会为您细化系统内所有与IT技能相关的领域，您可以进一步选择加入该领域的微信群聊。", e.GetFatherKeywordsStr())
+							wxSendMsg.FromUserName = wxRecvMsges.MsgList[i].ToUserName
+							wxSendMsg.ToUserName = wxRecvMsges.MsgList[i].FromUserName
+							wxSendMsg.LocalID = fmt.Sprintf("%d", time.Now().Unix())
+							wxSendMsg.ClientMsgId = wxSendMsg.LocalID
+
+							go s.SendMsg(&loginMap, wxSendMsg)
+						} else {
+							go s.InviteMember(&loginMap, wxRecvMsges.MsgList[i].FromUserName, groupMap[strings.ToLower(wxRecvMsges.MsgList[i].Content[1:])][0].UserName)
+						}
 					}
 				}
 			}

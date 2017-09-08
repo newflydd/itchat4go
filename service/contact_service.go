@@ -70,7 +70,7 @@ func MapGroupInfo(contactMap map[string]m.User) map[string][]m.User {
 			for _, key := range e.GetFocusGroupKeywords() {
 				reg := regexp.MustCompile(key)
 				if reg.MatchString(user.UserName) || reg.MatchString(user.NickName) {
-					groupMap[key] = append(groupMap[key], user)
+					groupMap[strings.ToLower(key)] = append(groupMap[strings.ToLower(key)], user)
 				}
 			}
 		}
