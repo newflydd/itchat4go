@@ -67,7 +67,7 @@ func MapGroupInfo(contactMap map[string]m.User) map[string][]m.User {
 	for _, user := range contactMap {
 		if strings.HasPrefix(user.UserName, "@@") {
 			/* 如果该联系人是一个群组，依次判断是否需要加入焦点群列表 */
-			for _, key := range e.GetFocusGroupKeywords() {
+			for _, key := range e.GetFocusGroupKeywordChildren() {
 				reg := regexp.MustCompile(key)
 				if reg.MatchString(user.UserName) || reg.MatchString(user.NickName) {
 					groupMap[strings.ToLower(key)] = append(groupMap[strings.ToLower(key)], user)

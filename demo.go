@@ -5,6 +5,7 @@ import (
 	e "itchat4go/enum"
 	m "itchat4go/model"
 	s "itchat4go/service"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -83,9 +84,10 @@ func main() {
 		groupSize += len(v)
 	}
 	fmt.Printf("整理完毕，共有 %d个 群组是焦点群组，它们是：\n", groupSize)
-	for _, v := range groupMap {
+	for key, v := range groupMap {
+		fmt.Println(key)
 		for _, user := range v {
-			fmt.Println(user.NickName)
+			fmt.Println("========>" + user.NickName)
 		}
 	}
 
@@ -95,13 +97,15 @@ func main() {
 	regGroup := regexp.MustCompile(`^@@.+`)
 	regAd := regexp.MustCompile(`(朋友圈|点赞)+`)
 	secretCode := "cmd"
-	regFather := regexp.MustCompile(`^:[^:]{2,4}$`)
-	regChildren := regexp.MustCompile(`^::.{2,}$`)
 	for {
 		retcode, selector, err = s.SyncCheck(&loginMap)
 		if err != nil {
 			fmt.Println(retcode, selector)
 			printErr(err)
+			if retcode == 1101 {
+				fmt.Println("帐号已在其他地方登陆，程序将退出。")
+				os.Exit(2)
+			}
 			continue
 		}
 
@@ -127,6 +131,9 @@ func main() {
 						wxSendMsg.LocalID = fmt.Sprintf("%d", time.Now().Unix())
 						wxSendMsg.ClientMsgId = wxSendMsg.LocalID
 
+						/* 加点延时，避免消息次序混乱，同时避免微信侦察到机器人 */
+						time.Sleep(time.Second)
+
 						go s.SendMsg(&loginMap, wxSendMsg)
 					} else if (!regGroup.MatchString(wxRecvMsges.MsgList[i].FromUserName)) && regAd.MatchString(wxRecvMsges.MsgList[i].Content) {
 						/* 有人私聊我，并且内容含有「朋友圈」、「点赞」等敏感词，则回复 */
@@ -138,51 +145,63 @@ func main() {
 						wxSendMsg.LocalID = fmt.Sprintf("%d", time.Now().Unix())
 						wxSendMsg.ClientMsgId = wxSendMsg.LocalID
 
+						time.Sleep(time.Second)
+
 						go s.SendMsg(&loginMap, wxSendMsg)
 					} else if (!regGroup.MatchString(wxRecvMsges.MsgList[i].FromUserName)) && strings.EqualFold(wxRecvMsges.MsgList[i].Content, secretCode) {
 						/* 有人私聊我，并且内容是密语，输出加群菜单 */
 						wxSendMsg := m.WxSendMsg{}
 						wxSendMsg.Type = 1
-						wxSendMsg.Content = fmt.Sprintf("我是丁丁编写的微信群聊助手，我为您提供了以下分组关键词：\n\n%s\n\n您可以输入半角的':' + 关键词获取更详细的群聊目录，比如您可以输入[:编程]，我会为您细化系统内所有与IT技能相关的领域，您可以进一步选择加入该领域的微信群聊。", e.GetFatherKeywordsStr())
+						wxSendMsg.Content = fmt.Sprintf("我是丁丁编写的微信群聊助手，我为您提供了以下分组关键词：\n\n%s\n您可以输入上方关键词或者其索引号获取更详细的群聊目录，比如您可以输入\"编程\"或者\"1-0\"，我会为您细化系统内所有与计算机编程相关的领域，您可以进一步选择加入该领域的微信群聊。", e.GetFatherKeywordsStr())
 						wxSendMsg.FromUserName = wxRecvMsges.MsgList[i].ToUserName
 						wxSendMsg.ToUserName = wxRecvMsges.MsgList[i].FromUserName
 						wxSendMsg.LocalID = fmt.Sprintf("%d", time.Now().Unix())
 						wxSendMsg.ClientMsgId = wxSendMsg.LocalID
 
+						time.Sleep(time.Second)
+
 						go s.SendMsg(&loginMap, wxSendMsg)
-					} else if (!regGroup.MatchString(wxRecvMsges.MsgList[i].FromUserName)) && regFather.MatchString(wxRecvMsges.MsgList[i].Content) {
-						/* 有人私聊我，并且内容是:+一级目录的形式，输出子目录 */
-						description, exampleStr, keywords := e.GetChildKeywordsInfo(wxRecvMsges.MsgList[i].Content[1:])
-						var content string
-						if keywords == "" {
-							content = fmt.Sprintf("没有查询到您输入关键字对应的分组信息，目前提供了以下分组关键词：\n\n%s\n\n您可以输入半角的':' + 关键词获取更详细的群聊目录，比如您可以输入[:编程]，我会为您细化系统内所有与IT技能相关的领域，您可以进一步选择加入该领域的微信群聊。", e.GetFatherKeywordsStr())
-						} else {
-							content = fmt.Sprintf(`%s\n\n%s\n\n您可以输入两个半角的:: + 关键词，我会为您寻找系统内的微信群组并邀请您加入，比如您可以输入%s`, description, keywords, exampleStr)
+					} else if !regGroup.MatchString(wxRecvMsges.MsgList[i].FromUserName) {
+						/* 有人私聊我，依次判断是否是父级目录结构，输出子目录 */
+						count := 0
+						content := wxRecvMsges.MsgList[i].Content
+						for _, v := range e.GetFocusGroupKeywords() {
+							reg := regexp.MustCompile("^(" + strings.ToLower(v.FatherName) + ")$")
+							if reg.MatchString(strings.ToLower(content)) {
+								/* 判断为父级目录 */
+								description, keywords, exampleStr := e.GetChildKeywordsInfo(v.FatherName)
+								wxSendMsg := m.WxSendMsg{}
+								wxSendMsg.Type = 1
+								wxSendMsg.Content = fmt.Sprintf("%s\n\n%s\n您可以输入以上关键词或者其索引号，我会为您寻找系统内的微信群组并邀请您加入，比如您可以输入%s", description, exampleStr, keywords)
+								wxSendMsg.FromUserName = wxRecvMsges.MsgList[i].ToUserName
+								wxSendMsg.ToUserName = wxRecvMsges.MsgList[i].FromUserName
+								wxSendMsg.LocalID = fmt.Sprintf("%d", time.Now().Unix())
+								wxSendMsg.ClientMsgId = wxSendMsg.LocalID
+
+								time.Sleep(time.Second)
+
+								go s.SendMsg(&loginMap, wxSendMsg)
+								break
+							}
+							count++
 						}
 
-						wxSendMsg := m.WxSendMsg{}
-						wxSendMsg.Type = 1
-						wxSendMsg.Content = content
-						wxSendMsg.FromUserName = wxRecvMsges.MsgList[i].ToUserName
-						wxSendMsg.ToUserName = wxRecvMsges.MsgList[i].FromUserName
-						wxSendMsg.LocalID = fmt.Sprintf("%d", time.Now().Unix())
-						wxSendMsg.ClientMsgId = wxSendMsg.LocalID
+						if count != len(e.GetFocusGroupKeywords()) {
+							continue
+						}
 
-						go s.SendMsg(&loginMap, wxSendMsg)
-					} else if (!regGroup.MatchString(wxRecvMsges.MsgList[i].FromUserName)) && regChildren.MatchString(wxRecvMsges.MsgList[i].Content) {
-						/* 有人私聊我，并且内容是::+二级目录的形式，邀请对方加入群聊 */
-						if len(groupMap[strings.ToLower(wxRecvMsges.MsgList[i].Content[1:])]) == 0 {
-							wxSendMsg := m.WxSendMsg{}
-							wxSendMsg.Type = 1
-							wxSendMsg.Content = fmt.Sprintf("Sorry，没有找到您查询的群组。我为您提供了以下分组关键词：\n\n%s\n\n您可以输入半角的':' + 关键词获取更详细的群聊目录，比如您可以输入[:编程]，我会为您细化系统内所有与IT技能相关的领域，您可以进一步选择加入该领域的微信群聊。", e.GetFatherKeywordsStr())
-							wxSendMsg.FromUserName = wxRecvMsges.MsgList[i].ToUserName
-							wxSendMsg.ToUserName = wxRecvMsges.MsgList[i].FromUserName
-							wxSendMsg.LocalID = fmt.Sprintf("%d", time.Now().Unix())
-							wxSendMsg.ClientMsgId = wxSendMsg.LocalID
+						/* 依次判断是否为子目录 */
+						for key, groupUsers := range groupMap {
+							reg := regexp.MustCompile("^(" + strings.ToLower(key) + ")$")
+							if reg.MatchString(strings.ToLower(content)) {
+								/* 判断为子目录 */
+								for _, user := range groupUsers {
+									time.Sleep(time.Second)
+									go s.InviteMember(&loginMap, wxRecvMsges.MsgList[i].FromUserName, user.UserName)
+								}
 
-							go s.SendMsg(&loginMap, wxSendMsg)
-						} else {
-							go s.InviteMember(&loginMap, wxRecvMsges.MsgList[i].FromUserName, groupMap[strings.ToLower(wxRecvMsges.MsgList[i].Content[1:])][0].UserName)
+								break
+							}
 						}
 					}
 				}

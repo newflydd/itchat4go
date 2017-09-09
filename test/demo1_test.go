@@ -29,7 +29,7 @@ func TTestGetUUID(test *testing.T) {
 }
 
 func TestStr(test *testing.T) {
-	fmt.Println(regexp.MustCompile(`^:[^:]{2,4}$`).MatchString("::尤文"))
+	fmt.Println(regexp.MustCompile("(编程|全栈)").MatchString("全栈"))
 }
 
 /* 根据UUID获取二维码 */
