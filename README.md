@@ -1,12 +1,12 @@
-#DEMO:
+# DEMO:
 
-加微信好友：168138332（已设置成免验证聊天） 或者扫描下方二维码
+## 加微信好友：168138332（已设置成免验证聊天） 或者扫描下方二维码
 ![二维码](http://ocsy1jhmk.bkt.clouddn.com/23740be4-8171-4cd2-b131-5962de78bcd9.png)
 
-在聊天界面跟我对话，发送文字:cmd，随后根据提示操作，就能体验一下这个小机器人的功能了。
+## 在聊天界面跟我对话，发送文字:cmd，随后根据提示操作，就能体验一下这个小机器人的功能了。
 
 
-#itchat4go -- 用Golang扩展个人微信号的能力
+# itchat4go -- 用Golang扩展个人微信号的能力
 
 ### 项目地址：[itchat4go](https://github.com/newflydd/itchat4go)，该项目长期维护更新，欢迎star、fork、 pull requests、 issue。
 
