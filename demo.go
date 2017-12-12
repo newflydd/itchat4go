@@ -6,7 +6,7 @@ import (
 	m "itchat4go/model"
 	s "itchat4go/service"
 	"os"
-	"os/exec"
+	//"os/exec"
 	"regexp"
 	"strings"
 	"time"
@@ -30,9 +30,9 @@ func main() {
 	/* 根据UUID获取二维码 */
 	err = s.DownloadImagIntoDir(e.QRCODE_URL+uuid, "./qrcode")
 	panicErr(err)
-	cmd := exec.Command(`cmd`, `/c start ./qrcode/qrcode.jpg`)
-	err = cmd.Run()
-	panicErr(err)
+	//cmd := exec.Command(`cmd`, `/c start ./qrcode/qrcode.jpg`)
+	//err = cmd.Run()
+	//panicErr(err)
 
 	/* 轮询服务器判断二维码是否扫过暨是否登陆了 */
 	for {
